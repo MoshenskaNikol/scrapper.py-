@@ -4,32 +4,58 @@ import urllib2
 from bs4 import BeautifulSoup
 import re
 import pandas as pd
-import numpy as np
+import gc
 
-base = "https://zp.isuo.org"
-schools = ["/ru/schools/view/id/763","/ru/schools/view/id/771","/ru/schools/view/id/779","/ru/schools/view/id/787","/ru/schools/view/id/789","/ru/schools/view/id/871","/ru/schools/view/id/875","/ru/schools/view/id/901","/ru/schools/view/id/920","/ru/schools/view/id/951","/ru/schools/view/id/953","/ru/schools/view/id/960","/ru/schools/view/id/978","/ru/schools/view/id/1113","/ru/schools/view/id/1114","/ru/schools/view/id/1132","/ru/schools/view/id/1133","/ru/schools/view/id/1264","/ru/schools/view/id/1300","/ru/schools/view/id/1489","/ru/schools/view/id/1490","/ru/schools/view/id/1491","/ru/schools/view/id/1495","/ru/schools/view/id/1534","/ru/schools/view/id/1538","/ru/schools/view/id/1539","/ru/schools/view/id/1540","/ru/schools/view/id/1541","/ru/schools/view/id/1542","/ru/schools/view/id/1543","/ru/schools/view/id/1544","/ru/schools/view/id/1545","/ru/schools/view/id/1546","/ru/schools/view/id/1547","/ru/schools/view/id/1548","/ru/schools/view/id/1549","/ru/schools/view/id/1550","/ru/schools/view/id/1551","/ru/schools/view/id/1552","/ru/schools/view/id/1553","/ru/schools/view/id/1554","/ru/schools/view/id/1555","/ru/schools/view/id/1556","/ru/schools/view/id/1557","/ru/schools/view/id/1558","/ru/schools/view/id/1561","/ru/schools/view/id/1562","/ru/schools/view/id/1563","/ru/schools/view/id/1564","/ru/schools/view/id/1565","/ru/schools/view/id/1566","/ru/schools/view/id/1567","/ru/schools/view/id/1568","/ru/schools/view/id/1570","/ru/schools/view/id/1572","/ru/schools/view/id/1573","/ru/schools/view/id/1574","/ru/schools/view/id/1577","/ru/schools/view/id/1578","/ru/schools/view/id/1579","/ru/schools/view/id/1580","/ru/schools/view/id/1581","/ru/schools/view/id/1582","/ru/schools/view/id/1583","/ru/schools/view/id/1584","/ru/schools/view/id/1585","/ru/schools/view/id/1586","/ru/schools/view/id/1587","/ru/schools/view/id/1588","/ru/schools/view/id/1589","/ru/schools/view/id/1590","/ru/schools/view/id/1591","/ru/schools/view/id/1592","/ru/schools/view/id/1593","/ru/schools/view/id/1594","/ru/schools/view/id/1595","/ru/schools/view/id/1596","/ru/schools/view/id/1597","/ru/schools/view/id/1598","/ru/schools/view/id/1599","/ru/schools/view/id/1600","/ru/schools/view/id/1601","/ru/schools/view/id/1602","/ru/schools/view/id/1603","/ru/schools/view/id/1604","/ru/schools/view/id/1605","/ru/schools/view/id/1606","/ru/schools/view/id/1607","/ru/schools/view/id/1608","/ru/schools/view/id/1609","/ru/schools/view/id/1611","/ru/schools/view/id/1612","/ru/schools/view/id/1614","/ru/schools/view/id/1615","/ru/schools/view/id/1616","/ru/schools/view/id/1617","/ru/schools/view/id/1618","/ru/schools/view/id/1619","/ru/schools/view/id/1620","/ru/schools/view/id/1621","/ru/schools/view/id/1622","/ru/schools/view/id/1623","/ru/schools/view/id/1624","/ru/schools/view/id/1625","/ru/schools/view/id/1626","/ru/schools/view/id/1627","/ru/schools/view/id/1628","/ru/schools/view/id/1629","/ru/schools/view/id/1630","/ru/schools/view/id/1631","/ru/schools/view/id/1632","/ru/schools/view/id/1633","/ru/schools/view/id/1634","/ru/schools/view/id/1635","/ru/schools/view/id/1636","/ru/schools/view/id/1637","/ru/schools/view/id/1638","/ru/schools/view/id/1639","/ru/schools/view/id/1640","/ru/schools/view/id/1641","/ru/schools/view/id/1642","/ru/schools/view/id/1643","/ru/schools/view/id/1644","/ru/schools/view/id/1645","/ru/schools/view/id/1647","/ru/schools/view/id/2059","/ru/schools/view/id/2380","/ru/schools/view/id/2643","/ru/schools/view/id/2734","/ru/schools/view/id/3840","/ru/schools/view/id/3841","/ru/schools/view/id/4539","/ru/schools/view/id/4659","/ru/schools/view/id/11456","/ru/schools/view/id/22512","/ru/schools/view/id/23464","/ru/schools/view/id/1610"]
+# base = "https://zp.isuo.org"
 
-df = pd.DataFrame(columns=['name', 'address', 'email'])
 
-for school in schools:
-    page = urllib2.urlopen(base + school)
-    soup = BeautifulSoup(page, 'html.parser')
-    print "parsing ", school
+url = "https://isuo.org/"
 
-    email = ""
-    for link in soup.findAll('a'):
-        if link.get('onclick'):
-            if "unescape" in link.get('onclick').encode("utf-8"):
-                raw = re.findall(r"\'(.+?)\'", link.get('onclick').encode("utf-8"))[0]
-                parsed = urllib2.unquote(raw)
-                email = re.findall(r">(.+?)<", parsed)[0]
+def scrapSchoolsByUrl(base, url):
+    print("scraping url:", base + url)
+    df = pd.DataFrame(columns=['index', 'name', 'email'])
+    soupSchool = BeautifulSoup(urllib2.urlopen(base + url), 'html.parser')
+    for school in soupSchool.findAll('a'):
+        if "/schools/view/id" in school.get('href'):
+            page = urllib2.urlopen(base + school.get("href"))
+            soup = BeautifulSoup(page, 'html.parser')
+            email = ""
+            for link in soup.findAll('a'):
+                if link.get('onclick'):
+                    if "unescape" in link.get('onclick').encode("utf-8"):
+                        raw = re.findall(r"\'(.+?)\'", link.get('onclick').encode("utf-8"))[0]
+                        parsed = urllib2.unquote(raw)
+                        email = re.findall(r">(.+?)<", parsed)[0]
+                        print("parsing ", base + school.get("href"), "email ", email)
+            df = df.append({'name': soup.title.string[0:-5], 'email': email}, ignore_index=True)
+    with open("ukrainian_schools.csv", 'a') as f:
+       df.to_csv(f, sep=',', encoding='utf-8')
 
-    address = ""
-    for el in soup.findAll('td'):
-        if u"Україна," in el.get_text():
-            address = el.get_text()
-            
 
-    df = df.append({'name': soup.title.string[0:-5], 'address': address, 'email': email}, ignore_index=True)
 
-df.to_csv('output.csv', sep='\t', encoding='utf-8')
+soupCountry = BeautifulSoup(urllib2.urlopen(url), 'html.parser')
+for country in soupCountry.findAll('a'):
+    gc.collect()
+    if ".isuo.org" in country.get('href') and "mon.isuo.org" not in country.get('href') and "irc.isuo.org" not in country.get('href') and "reg.isuo.org" not in country.get('href') and "at.isuo.org" not in country.get('href'):
+            urlRegion = "https:" + country.get("href")
+            # print("urlRegion", urlRegion)
+            soupRegion = BeautifulSoup(urllib2.urlopen(urlRegion), 'html.parser')
+            for region in soupRegion.findAll('a'):
+                if "/authorities/view/id/" in region.get('href') and "mon.isuo.org" not in region.get('href') and ((region.text[-3:] ==u'\u041e\u0414\u0410') or (region.text[-5:-1] ==u'\u041a\u041c\u0414\u0410')):
+                    urlSchools = urlRegion[:-1] + region.get("href")
+                    print(region.text)
+                    soupSchools = BeautifulSoup(urllib2.urlopen(urlSchools), 'html.parser')
+                    for regionOdas in soupSchools.findAll('ul', {"class", "tabs"}):
+                        for regionOda in regionOdas.findAll('a'):
+                            if "/authorities/schools-list/id/" in regionOda.get('href'):
+                                urlSchoolsInReg = urlRegion[:-1] + regionOda.get("href")[2:].strip();
+                                # print(urlSchoolsInReg)
+                                scrapSchoolsByUrl(urlRegion[:-1], regionOda.get("href")[2:].strip())
+                                soupPage = BeautifulSoup(urllib2.urlopen(urlSchoolsInReg), 'html.parser')
+                                page = 2
+                                for scoolPage in soupPage.findAll("a"):
+                                    urlPageForScrap = str(urlSchoolsInReg[urlRegion.__len__()-1:]) + "/page/" + str(page)
+                                    if urlPageForScrap in scoolPage.get("href"):
+                                        # print(urlPageForScrap)
+                                        scrapSchoolsByUrl(str(urlRegion), urlPageForScrap)
+                                        page = page + 1
